@@ -2671,6 +2671,32 @@ window.__rcDraw=draw;draw();
 </script>
 
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(r=>{window.__swr=r}).catch(()=>{})})}
+/* 새 버전 알림: 앱을 열어 둔 채로 있어도, 다시 화면으로 돌아오거나 30분마다 서버에 새 파일이 있는지 확인합니다 */
+(function(){
+  let base=null,shown=false;
+  const sig=r=>(r.headers.get('etag')||r.headers.get('last-modified')||'')+'|'+(r.headers.get('content-length')||'');
+  const get=()=>fetch('index.html',{method:'HEAD',cache:'no-cache'}).then(sig);
+  function toast(){
+    if(shown)return;shown=true;
+    const d=document.createElement('div');d.setAttribute('role','status');
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:#1c2140;color:#fff;font:14px/1.4 "Gothic A1",system-ui,sans-serif;box-shadow:0 -2px 12px rgba(0,0,0,.25)';
+    d.innerHTML='<span>새 버전이 있습니다.</span>';
+    const b=document.createElement('button');b.textContent='새로고침';b.style.cssText='font:inherit;font-weight:700;color:#1c2140;background:#fff;border:0;border-radius:8px;padding:6px 14px;cursor:pointer';
+    b.onclick=()=>location.reload();
+    const x=document.createElement('button');x.textContent='나중에';x.style.cssText='font:inherit;color:#fff;background:transparent;border:1px solid rgba(255,255,255,.5);border-radius:8px;padding:6px 14px;cursor:pointer';
+    x.onclick=()=>{d.remove();shown=false;base=null;get().then(s=>{base=s}).catch(()=>{})};
+    d.append(b,x);document.body.appendChild(d);
+  }
+  function check(){
+    if(!navigator.onLine)return;
+    if(window.__swr)window.__swr.update().catch(()=>{});
+    get().then(s=>{if(base===null)base=s;else if(s!==base)toast()}).catch(()=>{});
+  }
+  window.__checkUpdate=check;
+  window.addEventListener('load',()=>{get().then(s=>{base=s}).catch(()=>{})});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')check()});
+  setInterval(check,30*60*1000);
+})();
 </script>
 </body></html>
